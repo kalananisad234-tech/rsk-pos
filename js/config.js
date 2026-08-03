@@ -16,7 +16,7 @@ export const CONFIG = {
   // Only these Google accounts will be allowed to sign in and use
   // the till. Add every cashier / staff email that needs access.
   ALLOWED_EMAILS: [
-    "kalananisad234@gmail.com"
+    "kalananisad234@gmail.com",
     "rskcomshop@gmail.com"
   ],
 
