@@ -17,6 +17,7 @@ export const CONFIG = {
   // the till. Add every cashier / staff email that needs access.
   ALLOWED_EMAILS: [
     "kalananisad234@gmail.com"
+    "rskcomshop@gmail.com"
   ],
 
   // Shown on receipts, the dashboard, and the browser tab.
