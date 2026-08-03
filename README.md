@@ -101,7 +101,7 @@ in Google Sheets any time to inspect or back up your data:
 | `Products` | SKU, name, category, cost/sell price, stock, low-stock threshold |
 | `Sales` | One row per sale, with line items stored as JSON in one cell |
 | `Customers` | Name, phone, email, notes |
-| `Settings` | Shop name/address/phone, currency, tax rate, receipt footer |
+| `Settings` | Shop name/address/phone, registration no., "since" year, tagline, currency, tax rate, receipt footer |
 
 There is no separate backend or database — the browser talks straight to
 the Google Sheets API using the signed-in user's own permissions.

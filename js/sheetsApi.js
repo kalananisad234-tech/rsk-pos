@@ -62,19 +62,43 @@ export async function ensureSchema() {
       await seedDefaultSettings();
     }
   }
+
+  if (!missing.includes("Settings")) {
+    await backfillSettingsKeys();
+  }
 }
 
-async function seedDefaultSettings() {
-  const defaults = [
+/**
+ * Adds any settings keys introduced in a later version of the app to a
+ * spreadsheet that was already set up before those keys existed, so
+ * upgrades don't require manually editing the sheet.
+ */
+async function backfillSettingsKeys() {
+  const rows = await getAll("Settings");
+  const present = new Set(rows.map(r => r.Key));
+  const defaults = defaultSettingsList().filter(([key]) => !present.has(key));
+  if (defaults.length > 0) {
+    await appendRows("Settings", defaults);
+  }
+}
+
+function defaultSettingsList() {
+  return [
     ["ShopName", CONFIG.SHOP_NAME],
     ["ShopAddress", CONFIG.SHOP_ADDRESS],
     ["ShopPhone", CONFIG.SHOP_PHONE],
+    ["RegNo", CONFIG.REG_NO],
+    ["SinceYear", CONFIG.SINCE_YEAR],
+    ["Tagline", CONFIG.TAGLINE],
     ["ReceiptFooter", CONFIG.RECEIPT_FOOTER],
     ["Currency", CONFIG.CURRENCY],
     ["TaxRate", String(CONFIG.DEFAULT_TAX_RATE)],
     ["LowStockThreshold", String(CONFIG.DEFAULT_LOW_STOCK_THRESHOLD)]
   ];
-  await appendRows("Settings", defaults);
+}
+
+async function seedDefaultSettings() {
+  await appendRows("Settings", defaultSettingsList());
 }
 
 function rowsToObjects(values) {

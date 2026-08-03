@@ -1,6 +1,7 @@
 import { state, formatMoney, computeCartTotals, recordSale, setting } from "../store.js";
 import { getCurrentUser } from "../auth.js";
 import { escapeHtml } from "../router.js";
+import { renderInvoiceHTML } from "../receiptTemplate.js";
 
 let cart = []; // [{...product, qty}]
 let discount = 0;
@@ -203,30 +204,9 @@ function draw(root) {
 
 function showReceipt(root, sale) {
   const overlay = root.querySelector("#receipt-overlay");
-  const items = sale.Items ? JSON.parse(typeof sale.Items === "string" ? sale.Items : JSON.stringify(sale.Items)) : [];
   overlay.innerHTML = `
     <div class="modal-backdrop">
-      <div class="receipt" id="receipt-print">
-        <div class="receipt-shop">${escapeHtml(setting("ShopName"))}</div>
-        <div class="receipt-meta mono">${new Date(sale.DateTime).toLocaleString()}</div>
-        <div class="receipt-meta mono">Receipt ${sale.ID}</div>
-        <div class="receipt-rule"></div>
-        ${items
-          .map(
-            i => `<div class="receipt-line">
-              <span>${escapeHtml(i.name)} ×${i.qty}</span>
-              <span class="mono">${formatMoney(i.price * i.qty)}</span>
-            </div>`
-          )
-          .join("")}
-        <div class="receipt-rule"></div>
-        <div class="receipt-line"><span>Subtotal</span><span class="mono">${formatMoney(sale.Subtotal)}</span></div>
-        <div class="receipt-line"><span>Discount</span><span class="mono">-${formatMoney(sale.Discount)}</span></div>
-        <div class="receipt-line"><span>Tax</span><span class="mono">${formatMoney(sale.Tax)}</span></div>
-        <div class="receipt-line receipt-line--total"><span>Total</span><span class="mono">${formatMoney(sale.Total)}</span></div>
-        <div class="receipt-rule"></div>
-        <div class="receipt-footer">${escapeHtml(setting("ReceiptFooter"))}</div>
-      </div>
+      <div class="invoice" id="receipt-print">${renderInvoiceHTML(sale)}</div>
       <div class="modal-actions">
         <button class="btn" id="close-receipt">Close</button>
         <button class="btn btn-primary" id="print-receipt">Print</button>

@@ -12,6 +12,9 @@ export async function renderSettings(root) {
         <label class="field"><span>Shop name</span><input class="input" name="ShopName" value="${escapeHtml(s.ShopName || "")}" /></label>
         <label class="field"><span>Address</span><input class="input" name="ShopAddress" value="${escapeHtml(s.ShopAddress || "")}" /></label>
         <label class="field"><span>Phone</span><input class="input" name="ShopPhone" value="${escapeHtml(s.ShopPhone || "")}" /></label>
+        <label class="field"><span>Registration No.</span><input class="input" name="RegNo" value="${escapeHtml(s.RegNo || "")}" /></label>
+        <label class="field"><span>"Since" year</span><input class="input" name="SinceYear" value="${escapeHtml(s.SinceYear || "")}" /></label>
+        <label class="field"><span>Tagline (top-right ribbon)</span><input class="input" name="Tagline" value="${escapeHtml(s.Tagline || "")}" /></label>
         <label class="field"><span>Currency symbol</span><input class="input" name="Currency" value="${escapeHtml(s.Currency || "")}" /></label>
         <label class="field"><span>Tax rate (%)</span><input class="input" name="TaxRate" type="number" step="0.01" min="0" value="${escapeHtml(s.TaxRate || "0")}" /></label>
         <label class="field"><span>Low stock threshold (default for new products)</span><input class="input" name="LowStockThreshold" type="number" step="1" min="0" value="${escapeHtml(s.LowStockThreshold || "3")}" /></label>

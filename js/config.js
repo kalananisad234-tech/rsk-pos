@@ -21,8 +21,11 @@ export const CONFIG = {
 
   // Shown on receipts, the dashboard, and the browser tab.
   SHOP_NAME: "RSK Computers & Gadgets",
-  SHOP_ADDRESS: "",
-  SHOP_PHONE: "",
+  SHOP_ADDRESS: "182/4, Kirindiwela Road, Ettiehelgotla, Weliweriya",
+  SHOP_PHONE: "0771 843 148 / 0332 254 744",
+  REG_NO: "WR12708",
+  SINCE_YEAR: "2008",
+  TAGLINE: "Your IT Solution",
   RECEIPT_FOOTER: "Thank you for shopping with us!",
 
   // Currency symbol used everywhere in the app.
