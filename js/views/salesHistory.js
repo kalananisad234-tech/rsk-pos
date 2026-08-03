@@ -1,4 +1,4 @@
-import { state, formatMoney } from "../store.js";
+import { state, formatMoney, setting } from "../store.js";
 import { escapeHtml } from "../router.js";
 
 export async function renderSalesHistory(root) {
@@ -41,11 +41,11 @@ function draw(root, range) {
       </div>
 
       <table class="table">
-        <thead><tr><th>Date</th><th>Receipt</th><th>Customer</th><th>Items</th><th>Payment</th><th>Cashier</th><th>Total</th></tr></thead>
+        <thead><tr><th>Date</th><th>Receipt</th><th>Customer</th><th>Items</th><th>Payment</th><th>Cashier</th><th>Total</th><th></th></tr></thead>
         <tbody>
           ${
             filtered.length === 0
-              ? `<tr><td colspan="7"><p class="empty">No sales in this range.</p></td></tr>`
+              ? `<tr><td colspan="8"><p class="empty">No sales in this range.</p></td></tr>`
               : filtered
                   .map(
                     s => `<tr class="row-clickable" data-id="${s.ID}">
@@ -56,6 +56,7 @@ function draw(root, range) {
                 <td>${escapeHtml(s.PaymentMethod)}</td>
                 <td>${escapeHtml(s.CashierEmail)}</td>
                 <td class="mono">${formatMoney(s.Total)}</td>
+                <td><button class="btn btn-sm" data-print="${s.ID}">Print</button></td>
               </tr>`
                   )
                   .join("")
@@ -70,36 +71,50 @@ function draw(root, range) {
   root.querySelector("#end-date").addEventListener("change", e => draw(root, { ...range, end: e.target.value }));
 
   root.querySelectorAll(".row-clickable").forEach(tr =>
-    tr.addEventListener("click", () => showDetail(root, filtered.find(s => s.ID === tr.dataset.id)))
+    tr.addEventListener("click", e => {
+      if (e.target.closest("[data-print]")) return; // handled separately below
+      showDetail(root, filtered.find(s => s.ID === tr.dataset.id));
+    })
+  );
+
+  root.querySelectorAll("[data-print]").forEach(btn =>
+    btn.addEventListener("click", e => {
+      e.stopPropagation();
+      showDetail(root, filtered.find(s => s.ID === btn.dataset.print), { autoPrint: true });
+    })
   );
 }
 
-function showDetail(root, sale) {
+function showDetail(root, sale, { autoPrint = false } = {}) {
   const modal = root.querySelector("#sale-detail-modal");
   modal.innerHTML = `
     <div class="modal-backdrop">
-      <div class="modal">
-        <h2>Receipt ${sale.ID}</h2>
-        <p class="mono">${new Date(sale.DateTime).toLocaleString()}</p>
-        <table class="table">
-          <thead><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-          <tbody>
-            ${sale.Items.map(
-              i => `<tr><td>${escapeHtml(i.name)}</td><td class="mono">${i.qty}</td><td class="mono">${formatMoney(i.price)}</td><td class="mono">${formatMoney(i.price * i.qty)}</td></tr>`
-            ).join("")}
-          </tbody>
-        </table>
-        <div class="cart-totals">
-          <div class="cart-totals-row"><span>Subtotal</span><span class="mono">${formatMoney(sale.Subtotal)}</span></div>
-          <div class="cart-totals-row"><span>Discount</span><span class="mono">-${formatMoney(sale.Discount)}</span></div>
-          <div class="cart-totals-row"><span>Tax</span><span class="mono">${formatMoney(sale.Tax)}</span></div>
-          <div class="cart-totals-row cart-totals-row--grand"><span>Total</span><span class="mono">${formatMoney(sale.Total)}</span></div>
-        </div>
-        <div class="modal-actions">
-          <button class="btn" id="close-detail">Close</button>
-        </div>
+      <div class="receipt" id="receipt-print">
+        <div class="receipt-shop">${escapeHtml(setting("ShopName"))}</div>
+        <div class="receipt-meta mono">${new Date(sale.DateTime).toLocaleString()}</div>
+        <div class="receipt-meta mono">Receipt ${sale.ID}</div>
+        <div class="receipt-rule"></div>
+        ${sale.Items.map(
+          i => `<div class="receipt-line">
+              <span>${escapeHtml(i.name)} ×${i.qty}</span>
+              <span class="mono">${formatMoney(i.price * i.qty)}</span>
+            </div>`
+        ).join("")}
+        <div class="receipt-rule"></div>
+        <div class="receipt-line"><span>Subtotal</span><span class="mono">${formatMoney(sale.Subtotal)}</span></div>
+        <div class="receipt-line"><span>Discount</span><span class="mono">-${formatMoney(sale.Discount)}</span></div>
+        <div class="receipt-line"><span>Tax</span><span class="mono">${formatMoney(sale.Tax)}</span></div>
+        <div class="receipt-line receipt-line--total"><span>Total</span><span class="mono">${formatMoney(sale.Total)}</span></div>
+        <div class="receipt-rule"></div>
+        <div class="receipt-footer">${escapeHtml(setting("ReceiptFooter"))}</div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="close-detail">Close</button>
+        <button class="btn btn-primary" id="print-detail">Print</button>
       </div>
     </div>
   `;
   modal.querySelector("#close-detail").addEventListener("click", () => (modal.innerHTML = ""));
+  modal.querySelector("#print-detail").addEventListener("click", () => window.print());
+  if (autoPrint) window.print();
 }
