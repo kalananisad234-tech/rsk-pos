@@ -13,7 +13,10 @@ import { renderSettings } from "./views/settings.js";
 
 const NAV_ITEMS = [
   { route: "dashboard", label: "Dashboard" },
-  { route: "pos", label: "New sale" },
+  { route: "pos", label: "New sale" }
+];
+
+const NAV_ITEMS_LOWER = [
   { route: "inventory", label: "Inventory" },
   { route: "sales", label: "Sales history" },
   { route: "customers", label: "Customers" },
@@ -71,6 +74,14 @@ async function showApp() {
         </div>
         <nav class="nav">
           ${NAV_ITEMS.map(
+            item => `<a href="#/${item.route}" class="nav-link" data-route="${item.route}">${item.label}</a>`
+          ).join("")}
+          <div class="nav-group-label">Services</div>
+          ${CONFIG.PINNED_CATEGORIES.map(
+            cat => `<a href="#/pos/${encodeURIComponent(cat)}" class="nav-link nav-link--sub" data-route="pos">${cat}</a>`
+          ).join("")}
+          <div class="nav-group-label">Manage</div>
+          ${NAV_ITEMS_LOWER.map(
             item => `<a href="#/${item.route}" class="nav-link" data-route="${item.route}">${item.label}</a>`
           ).join("")}
         </nav>

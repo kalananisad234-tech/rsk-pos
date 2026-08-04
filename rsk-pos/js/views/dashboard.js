@@ -1,11 +1,53 @@
-import { state, formatMoney, lowStockProducts } from "../store.js";
+import {
+  state,
+  formatMoney,
+  lowStockProducts,
+  salesOnDay,
+  salesInMonth,
+  totalRevenue,
+  totalProfit,
+  dayTarget,
+  monthlyTarget
+} from "../store.js";
 import { navigate } from "../router.js";
 
+function toInputDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function toInputMonth(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export async function renderDashboard(root) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todaysSales = state.sales.filter(s => new Date(s.DateTime) >= today);
-  const todaysRevenue = todaysSales.reduce((sum, s) => sum + Number(s.Total), 0);
+  draw(root, { day: toInputDate(new Date()), month: toInputMonth(new Date()) });
+}
+
+function progressBar(actual, target) {
+  if (target <= 0) {
+    return `<p class="kpi-progress-label">No target set — add one in Settings.</p>`;
+  }
+  const pct = Math.min((actual / target) * 100, 100);
+  const over = actual >= target;
+  return `
+    <div class="kpi-progress-track"><div class="kpi-progress-fill ${over ? "kpi-progress-fill--over" : ""}" style="width:${pct}%"></div></div>
+    <div class="kpi-progress-label">${over ? "Target reached — " : ""}${Math.round((actual / target) * 100)}% of ${formatMoney(target)}</div>
+  `;
+}
+
+function draw(root, filters) {
+  const dayDate = new Date(filters.day + "T00:00:00");
+  const [y, m] = filters.month.split("-").map(Number);
+  const monthDate = new Date(y, m - 1, 1);
+
+  const daySales = salesOnDay(dayDate);
+  const monthSales = salesInMonth(monthDate);
+
+  const dayActual = totalRevenue(daySales);
+  const monthActual = totalRevenue(monthSales);
+  const dayProfit = totalProfit(daySales);
+  const monthProfit = totalProfit(monthSales);
+
   const lowStock = lowStockProducts();
 
   root.innerHTML = `
@@ -14,14 +56,38 @@ export async function renderDashboard(root) {
       <button class="btn btn-primary" id="go-new-sale">+ New sale</button>
     </div>
 
+    <div class="panel">
+      <div class="filter-row">
+        <label class="field field-inline"><span>Day KPIs for</span><input class="input" type="date" id="day-filter" value="${filters.day}" /></label>
+        <label class="field field-inline"><span>Monthly KPIs for</span><input class="input" type="month" id="month-filter" value="${filters.month}" /></label>
+      </div>
+    </div>
+
     <div class="stat-grid">
       <div class="stat-card">
-        <span class="stat-label">Today's revenue</span>
-        <span class="stat-value mono">${formatMoney(todaysRevenue)}</span>
+        <span class="stat-label">Day target vs actual</span>
+        <span class="stat-value mono">${formatMoney(dayActual)}</span>
+        ${progressBar(dayActual, dayTarget())}
       </div>
       <div class="stat-card">
-        <span class="stat-label">Transactions today</span>
-        <span class="stat-value mono">${todaysSales.length}</span>
+        <span class="stat-label">Monthly target vs actual</span>
+        <span class="stat-value mono">${formatMoney(monthActual)}</span>
+        ${progressBar(monthActual, monthlyTarget())}
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Day profit</span>
+        <span class="stat-value mono">${formatMoney(dayProfit)}</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Monthly profit</span>
+        <span class="stat-value mono">${formatMoney(monthProfit)}</span>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="stat-label">Transactions (selected day)</span>
+        <span class="stat-value mono">${daySales.length}</span>
       </div>
       <div class="stat-card">
         <span class="stat-label">Products in catalog</span>
@@ -89,4 +155,6 @@ export async function renderDashboard(root) {
   `;
 
   root.querySelector("#go-new-sale").addEventListener("click", () => navigate("pos"));
+  root.querySelector("#day-filter").addEventListener("change", e => draw(root, { ...filters, day: e.target.value }));
+  root.querySelector("#month-filter").addEventListener("change", e => draw(root, { ...filters, month: e.target.value }));
 }

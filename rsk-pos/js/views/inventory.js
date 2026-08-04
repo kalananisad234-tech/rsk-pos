@@ -1,5 +1,6 @@
 import { state, formatMoney, addProduct, updateProduct, deactivateProduct } from "../store.js";
 import { escapeHtml } from "../router.js";
+import { requirePassword } from "../security.js";
 
 export async function renderInventory(root) {
   draw(root);
@@ -48,12 +49,17 @@ function draw(root, editing = null) {
     <div id="product-modal"></div>
   `;
 
-  root.querySelector("#add-product-btn").addEventListener("click", () => openModal(root, null));
+  root.querySelector("#add-product-btn").addEventListener("click", async () => {
+    if (await requirePassword("add a product")) openModal(root, null);
+  });
   root.querySelectorAll("[data-edit]").forEach(btn =>
-    btn.addEventListener("click", () => openModal(root, state.products.find(p => p.ID === btn.dataset.edit)))
+    btn.addEventListener("click", async () => {
+      if (await requirePassword("edit a product")) openModal(root, state.products.find(p => p.ID === btn.dataset.edit));
+    })
   );
   root.querySelectorAll("[data-remove]").forEach(btn =>
     btn.addEventListener("click", async () => {
+      if (!(await requirePassword("remove a product"))) return;
       if (!confirm("Remove this product from the active catalog? Past sales keep their record.")) return;
       const product = state.products.find(p => p.ID === btn.dataset.remove);
       await deactivateProduct(product);

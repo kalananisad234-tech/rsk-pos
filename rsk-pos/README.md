@@ -10,13 +10,13 @@ Plain HTML/CSS/JS. No build step, no framework, nothing to `npm install`.
 
 ## What you get
 
-- **Dashboard** — today's revenue, transaction count, low-stock alerts, recent sales
-- **New sale (POS)** — search products, build a cart, apply a discount, take payment, print a receipt
+- **Dashboard** — Day & Monthly target-vs-actual (with date/month filters), Day & Monthly profit, low-stock alerts, recent sales
+- **New sale (POS)** — category quick-filters (Printing, Computer, Insurance, Bill Payment, +anything else you add), search, cart, discount, tax, payment method, optional warranty details, printable bill
 - **Inventory** — add/edit products, track stock, low-stock threshold per item
-- **Sales history** — browse and filter past sales by date, view line-item detail
+- **Sales history** — filter by date, payment method, cashier, warranty, or search by receipt/customer; reprint any past bill
 - **Customers** — a simple customer book
 - **Reports** — revenue chart and top-selling products over a date range
-- **Settings** — shop name, address, phone, currency, tax rate, receipt footer
+- **Settings** — shop details, receipt header (logo, address, Reg No, tagline), currency, tax rate, day/monthly targets, and an optional password lock on Settings & Inventory
 - **Google Sign-In** — only the staff emails you list can access the till
 - **Google Sheets storage** — your data lives in a spreadsheet you own and can open directly any time
 
@@ -109,6 +109,8 @@ the Google Sheets API using the signed-in user's own permissions.
 ## Notes & limits
 
 - **Access control** is enforced by the `ALLOWED_EMAILS` list in `config.js` — anyone with a Google account can *attempt* to sign in, but only listed emails get past the check. Keep that list current and redeploy after editing it.
+- **Profit figures** are calculated from each sale's recorded cost price at the time of that sale. Sales made before this update didn't store a cost price, so they'll show as 0 cost (inflating their profit slightly) in the Day/Monthly Profit KPIs — this only affects historical data, not sales going forward.
+- **The Settings/Inventory password** is a shop-floor deterrent, not real security — it's stored in plain text in the Settings tab of your spreadsheet, visible to anyone with edit access to the sheet itself.
 - **Concurrent edits**: if two cashiers ring up a sale on the same product at the exact same moment, the last write wins on that product's stock count — fine for a single small shop, but worth knowing.
 - **Offline use isn't supported** — the app needs an internet connection to reach Google Sheets.
 - To reset everything, just delete the tabs in your spreadsheet; the app recreates them (empty) next time it loads.

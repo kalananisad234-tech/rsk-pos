@@ -1,4 +1,4 @@
-import { state, formatMoney, computeCartTotals, recordSale, setting } from "../store.js";
+import { state, formatMoney, computeCartTotals, recordSale, setting, categoriesList } from "../store.js";
 import { getCurrentUser } from "../auth.js";
 import { escapeHtml } from "../router.js";
 import { renderInvoiceHTML } from "../receiptTemplate.js";
@@ -6,6 +6,8 @@ import { renderInvoiceHTML } from "../receiptTemplate.js";
 let cart = []; // [{...product, qty}]
 let discount = 0;
 let searchTerm = "";
+let activeCategory = "All";
+let warranty = { enabled: false, no: "", tillDate: "", notes: "" };
 
 function findCartItem(id) {
   return cart.find(i => i.ID === id);
@@ -31,8 +33,16 @@ function changeQty(id, delta) {
   }
 }
 
-export async function renderPOS(root) {
+export async function renderPOS(root, param) {
+  activeCategory = param || "All";
   draw(root);
+}
+
+function matchesFilters(p) {
+  const term = searchTerm.toLowerCase();
+  const categoryOk = activeCategory === "All" || p.Category === activeCategory;
+  const searchOk = !term || p.Name.toLowerCase().includes(term) || p.SKU.toLowerCase().includes(term);
+  return p.Active && categoryOk && searchOk;
 }
 
 function renderProductCards(products) {
@@ -60,13 +70,25 @@ function bindProductGrid(root) {
   });
 }
 
+function renderCategoryChips() {
+  const cats = ["All", ...categoriesList()];
+  return cats
+    .map(
+      c => `<button class="chip ${c === activeCategory ? "chip--active" : ""}" data-cat="${escapeHtml(c)}">${escapeHtml(c)}</button>`
+    )
+    .join("");
+}
+
+function warrantySummary() {
+  if (!warranty.enabled) return "";
+  const parts = [];
+  if (warranty.no) parts.push(`No: ${warranty.no}`);
+  if (warranty.tillDate) parts.push(`Till: ${warranty.tillDate}`);
+  return parts.length ? parts.join(" · ") : "Details not filled in yet";
+}
+
 function draw(root) {
-  const filtered = state.products.filter(
-    p =>
-      p.Active &&
-      (p.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.SKU.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filtered = state.products.filter(matchesFilters);
   const { subtotal, tax, total } = computeCartTotals(cart, discount);
 
   root.innerHTML = `
@@ -75,6 +97,7 @@ function draw(root) {
     </div>
     <div class="pos-layout">
       <div class="pos-catalog">
+        <div class="chip-row" id="category-chips">${renderCategoryChips()}</div>
         <input class="input" id="product-search" placeholder="Search by name or SKU…" value="${escapeHtml(searchTerm)}" />
         <div class="product-grid" id="product-grid">${renderProductCards(filtered)}</div>
       </div>
@@ -127,6 +150,18 @@ function draw(root) {
               <option value="Other">Other</option>
             </select>
           </label>
+          <label class="field field-checkbox">
+            <input type="checkbox" id="warranty-toggle" ${warranty.enabled ? "checked" : ""} />
+            <span>✅ Warranty</span>
+          </label>
+          ${
+            warranty.enabled
+              ? `<div class="warranty-summary">
+                  <span>${escapeHtml(warrantySummary())}</span>
+                  <button type="button" class="link" id="edit-warranty">Edit</button>
+                </div>`
+              : ""
+          }
         </div>
 
         <div class="cart-totals">
@@ -141,18 +176,20 @@ function draw(root) {
       </div>
     </div>
     <div id="receipt-overlay"></div>
+    <div id="warranty-modal"></div>
   `;
+
+  root.querySelectorAll("#category-chips .chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      activeCategory = chip.dataset.cat;
+      draw(root);
+    });
+  });
 
   root.querySelector("#product-search").addEventListener("input", e => {
     searchTerm = e.target.value;
     const grid = root.querySelector("#product-grid");
-    const stillFiltered = state.products.filter(
-      p =>
-        p.Active &&
-        (p.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.SKU.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    grid.innerHTML = renderProductCards(stillFiltered);
+    grid.innerHTML = renderProductCards(state.products.filter(matchesFilters));
     bindProductGrid(root);
   });
 
@@ -178,6 +215,24 @@ function draw(root) {
     }
   });
 
+  const warrantyToggle = root.querySelector("#warranty-toggle");
+  warrantyToggle.addEventListener("change", () => {
+    if (warrantyToggle.checked) {
+      openWarrantyModal(root, ok => {
+        warranty.enabled = ok;
+        draw(root);
+      });
+    } else {
+      warranty = { enabled: false, no: "", tillDate: "", notes: "" };
+      draw(root);
+    }
+  });
+
+  const editWarrantyLink = root.querySelector("#edit-warranty");
+  if (editWarrantyLink) {
+    editWarrantyLink.addEventListener("click", () => openWarrantyModal(root, () => draw(root)));
+  }
+
   const checkoutBtn = root.querySelector("#checkout-btn");
   checkoutBtn.addEventListener("click", async () => {
     checkoutBtn.disabled = true;
@@ -189,16 +244,49 @@ function draw(root) {
         paymentMethod: root.querySelector("#payment-method").value,
         customerName: root.querySelector("#customer-name").value,
         customerPhone: root.querySelector("#customer-phone").value,
-        cashierEmail: getCurrentUser()?.email || ""
+        cashierEmail: getCurrentUser()?.email || "",
+        warranty
       });
       showReceipt(root, sale);
       cart = [];
       discount = 0;
+      warranty = { enabled: false, no: "", tillDate: "", notes: "" };
     } catch (err) {
       alert(`Could not complete the sale: ${err.message}`);
       checkoutBtn.disabled = false;
       checkoutBtn.textContent = "Complete sale";
     }
+  });
+}
+
+function openWarrantyModal(root, onDone) {
+  const modal = root.querySelector("#warranty-modal");
+  modal.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal">
+        <h2>✅ Warranty details</h2>
+        <form id="warranty-form">
+          <label class="field"><span>Warranty No.</span><input class="input" name="no" value="${escapeHtml(warranty.no)}" /></label>
+          <label class="field"><span>Till date</span><input class="input" name="tillDate" type="date" value="${escapeHtml(warranty.tillDate)}" /></label>
+          <label class="field"><span>Notes / covered items</span><input class="input" name="notes" value="${escapeHtml(warranty.notes)}" /></label>
+          <div class="modal-actions">
+            <button type="button" class="btn" id="cancel-warranty">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  modal.querySelector("#cancel-warranty").addEventListener("click", () => {
+    modal.innerHTML = "";
+    onDone(false);
+  });
+  modal.querySelector("#warranty-form").addEventListener("submit", e => {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    warranty = { enabled: true, no: form.get("no") || "", tillDate: form.get("tillDate") || "", notes: form.get("notes") || "" };
+    modal.innerHTML = "";
+    onDone(true);
   });
 }
 

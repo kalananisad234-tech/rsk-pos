@@ -1,8 +1,14 @@
 import { state, updateSettings } from "../store.js";
 import { CONFIG } from "../config.js";
 import { escapeHtml } from "../router.js";
+import { requirePassword } from "../security.js";
 
 export async function renderSettings(root) {
+  const ok = await requirePassword("open Settings");
+  if (!ok) {
+    root.innerHTML = `<div class="page-header"><h1>Settings</h1></div><div class="panel"><p class="empty">Access cancelled.</p></div>`;
+    return;
+  }
   const s = state.settings;
   root.innerHTML = `
     <div class="page-header"><h1>Settings</h1></div>
@@ -19,8 +25,24 @@ export async function renderSettings(root) {
         <label class="field"><span>Tax rate (%)</span><input class="input" name="TaxRate" type="number" step="0.01" min="0" value="${escapeHtml(s.TaxRate || "0")}" /></label>
         <label class="field"><span>Low stock threshold (default for new products)</span><input class="input" name="LowStockThreshold" type="number" step="1" min="0" value="${escapeHtml(s.LowStockThreshold || "3")}" /></label>
         <label class="field"><span>Receipt footer text</span><input class="input" name="ReceiptFooter" value="${escapeHtml(s.ReceiptFooter || "")}" /></label>
+        <label class="field"><span>Day revenue target</span><input class="input" name="DayTarget" type="number" step="0.01" min="0" value="${escapeHtml(s.DayTarget || "0")}" /></label>
+        <label class="field"><span>Monthly revenue target</span><input class="input" name="MonthlyTarget" type="number" step="0.01" min="0" value="${escapeHtml(s.MonthlyTarget || "0")}" /></label>
         <button type="submit" class="btn btn-primary">Save settings</button>
         <p id="save-confirmation" class="save-confirmation"></p>
+      </form>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h2>Security</h2></div>
+      <p class="hint">When enabled, staff must enter this password to open Settings or make Inventory changes (add, edit, remove products).</p>
+      <form id="security-form">
+        <label class="field field-checkbox">
+          <input type="checkbox" name="PasswordEnabled" ${s.PasswordEnabled === "TRUE" ? "checked" : ""} />
+          <span>Require password for Settings &amp; Inventory changes</span>
+        </label>
+        <label class="field"><span>Password</span><input class="input" name="SettingsPassword" type="text" placeholder="Leave as-is to keep current password" value="${escapeHtml(s.SettingsPassword || "")}" /></label>
+        <button type="submit" class="btn btn-primary">Save security settings</button>
+        <p id="security-confirmation" class="save-confirmation"></p>
       </form>
     </div>
 
@@ -32,6 +54,25 @@ export async function renderSettings(root) {
       </ul>
     </div>
   `;
+
+  root.querySelector("#security-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    const payload = {
+      PasswordEnabled: form.get("PasswordEnabled") ? "TRUE" : "FALSE",
+      SettingsPassword: form.get("SettingsPassword") || ""
+    };
+    const btn = e.target.querySelector("button[type=submit]");
+    btn.disabled = true;
+    try {
+      await updateSettings(payload);
+      root.querySelector("#security-confirmation").textContent = "Saved.";
+    } catch (err) {
+      alert(`Could not save: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 
   root.querySelector("#settings-form").addEventListener("submit", async e => {
     e.preventDefault();

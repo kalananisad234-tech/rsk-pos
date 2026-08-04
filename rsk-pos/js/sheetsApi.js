@@ -12,10 +12,31 @@ const BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
 const SHEETS = {
   Products: ["ID", "SKU", "Name", "Category", "CostPrice", "SellPrice", "Stock", "LowStockAt", "Active"],
-  Sales: ["ID", "DateTime", "CustomerName", "CustomerPhone", "ItemsJSON", "Subtotal", "Discount", "Tax", "Total", "PaymentMethod", "CashierEmail"],
+  Sales: [
+    "ID", "DateTime", "CustomerName", "CustomerPhone", "ItemsJSON", "Subtotal", "Discount", "Tax", "Total",
+    "PaymentMethod", "CashierEmail", "HasWarranty", "WarrantyNo", "WarrantyTillDate", "WarrantyNotes"
+  ],
   Customers: ["ID", "Name", "Phone", "Email", "Notes"],
   Settings: ["Key", "Value"]
 };
+
+function columnLetter(index) {
+  // 0-based column index -> spreadsheet column letters (A, B, ... Z, AA, AB, ...)
+  let n = index + 1;
+  let letters = "";
+  while (n > 0) {
+    const rem = (n - 1) % 26;
+    letters = String.fromCharCode(65 + rem) + letters;
+    n = Math.floor((n - 1) / 26);
+  }
+  return letters;
+}
+
+/** Reads just the header row of a sheet. */
+async function getHeaderRow(sheetName) {
+  const data = await sheetsFetch(`/values/${encodeURIComponent(sheetName)}!1:1`);
+  return (data.values && data.values[0]) || [];
+}
 
 async function sheetsFetch(path, options = {}) {
   const token = getAccessToken();
@@ -66,6 +87,27 @@ export async function ensureSchema() {
   if (!missing.includes("Settings")) {
     await backfillSettingsKeys();
   }
+
+  // For sheets that already existed, make sure any newly-introduced
+  // columns (e.g. warranty fields added in a later version) get added
+  // to the end of the header row so existing spreadsheets stay in sync.
+  for (const name of Object.keys(SHEETS)) {
+    if (missing.includes(name) || name === "Settings") continue;
+    await ensureColumns(name);
+  }
+}
+
+async function ensureColumns(sheetName) {
+  const header = await getHeaderRow(sheetName);
+  const expected = SHEETS[sheetName];
+  const toAdd = expected.filter(col => !header.includes(col));
+  if (toAdd.length === 0) return;
+  const startCol = columnLetter(header.length);
+  const endCol = columnLetter(header.length + toAdd.length - 1);
+  await sheetsFetch(`/values/${encodeURIComponent(sheetName)}!${startCol}1:${endCol}1?valueInputOption=USER_ENTERED`, {
+    method: "PUT",
+    body: JSON.stringify({ values: [toAdd] })
+  });
 }
 
 /**
@@ -93,7 +135,11 @@ function defaultSettingsList() {
     ["ReceiptFooter", CONFIG.RECEIPT_FOOTER],
     ["Currency", CONFIG.CURRENCY],
     ["TaxRate", String(CONFIG.DEFAULT_TAX_RATE)],
-    ["LowStockThreshold", String(CONFIG.DEFAULT_LOW_STOCK_THRESHOLD)]
+    ["LowStockThreshold", String(CONFIG.DEFAULT_LOW_STOCK_THRESHOLD)],
+    ["DayTarget", String(CONFIG.DEFAULT_DAY_TARGET)],
+    ["MonthlyTarget", String(CONFIG.DEFAULT_MONTHLY_TARGET)],
+    ["PasswordEnabled", "FALSE"],
+    ["SettingsPassword", ""]
   ];
 }
 
@@ -123,6 +169,14 @@ export async function appendRows(sheetName, rows) {
     `/values/${encodeURIComponent(sheetName)}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
     { method: "POST", body: JSON.stringify({ values: rows }) }
   );
+}
+
+/** Appends a single row and returns its 1-indexed sheet row number, read from the API's own response (avoids assuming rows always land at the end). */
+export async function appendSingleRow(sheetName, rowValues) {
+  const res = await appendRows(sheetName, [rowValues]);
+  const range = res.updates?.updatedRange || "";
+  const match = range.match(/![A-Z]+(\d+):/);
+  return match ? Number(match[1]) : null;
 }
 
 /** Overwrites a single existing row (1-indexed sheet row number, including header). */

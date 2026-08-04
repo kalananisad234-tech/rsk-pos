@@ -67,6 +67,17 @@ export function renderInvoiceHTML(sale) {
     <div class="invoice-rule"></div>
     <div class="invoice-thankyou">${escapeHtml(setting("ReceiptFooter"))}</div>
 
+    ${
+      sale.HasWarranty === true || sale.HasWarranty === "TRUE"
+        ? `<div class="invoice-warranty">
+            <div class="invoice-warranty-title">✅ Warranty</div>
+            ${sale.WarrantyNo ? `<div class="invoice-meta-row"><span>Warranty No.</span><span class="mono">${escapeHtml(sale.WarrantyNo)}</span></div>` : ""}
+            ${sale.WarrantyTillDate ? `<div class="invoice-meta-row"><span>Valid till</span><span class="mono">${escapeHtml(sale.WarrantyTillDate)}</span></div>` : ""}
+            ${sale.WarrantyNotes ? `<div class="invoice-warranty-notes">${escapeHtml(sale.WarrantyNotes)}</div>` : ""}
+          </div>`
+        : ""
+    }
+
     <div class="invoice-footer-row">
       <span>${since ? `Since ${escapeHtml(since)}` : ""}</span>
       <span class="invoice-social">Facebook &middot; Koko &middot; Daraz</span>

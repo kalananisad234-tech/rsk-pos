@@ -1,5 +1,7 @@
 // ============================================================
 // RSK POS — Tiny hash router
+// Supports an optional trailing parameter, e.g. "#/pos/Printing",
+// passed as the second argument to the route's render function.
 // ============================================================
 
 const routes = {};
@@ -15,23 +17,25 @@ export function initRouter(root) {
   render();
 }
 
-export function navigate(name) {
-  location.hash = `#/${name}`;
+export function navigate(name, param) {
+  location.hash = param ? `#/${name}/${encodeURIComponent(param)}` : `#/${name}`;
 }
 
-function currentRoute() {
-  const hash = location.hash.replace(/^#\//, "");
-  return routes[hash] ? hash : "dashboard";
+function parseHash() {
+  const parts = location.hash.replace(/^#\//, "").split("/");
+  const route = routes[parts[0]] ? parts[0] : "dashboard";
+  const param = parts[1] ? decodeURIComponent(parts[1]) : undefined;
+  return { route, param };
 }
 
 async function render() {
-  const route = currentRoute();
+  const { route, param } = parseHash();
   document.querySelectorAll(".nav-link").forEach(el => {
     el.classList.toggle("active", el.dataset.route === route);
   });
   rootEl.innerHTML = `<div class="loading">Loading…</div>`;
   try {
-    await routes[route](rootEl);
+    await routes[route](rootEl, param);
   } catch (err) {
     rootEl.innerHTML = `<div class="error-banner">Something went wrong: ${escapeHtml(err.message || String(err))}</div>`;
   }
