@@ -16,7 +16,7 @@ export const CONFIG = {
   // Only these Google accounts will be allowed to sign in and use
   // the till. Add every cashier / staff email that needs access.
   ALLOWED_EMAILS: [
-    "kalananisad234@gmail.com"
+    "kalananisad234@gmail.com",
     "rskcomshop@gmail.com"
   ],
 
@@ -37,5 +37,14 @@ export const CONFIG = {
   DEFAULT_TAX_RATE: 0,
 
   // Stock level at or below which a product is flagged "low stock".
-  DEFAULT_LOW_STOCK_THRESHOLD: 3
+  DEFAULT_LOW_STOCK_THRESHOLD: 3,
+
+  // Starting point for the dashboard's Target vs Actual KPIs — change
+  // any time from the in-app Settings page.
+  DEFAULT_DAY_TARGET: 0,
+  DEFAULT_MONTHLY_TARGET: 0,
+
+  // Categories shown as quick-filter buttons at the top of New Sale,
+  // in this order, before any other categories found in your products.
+  PINNED_CATEGORIES: ["Printing", "Computer", "Insurance", "Bill Payment"]
 };
