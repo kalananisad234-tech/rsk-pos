@@ -10,6 +10,20 @@ import { renderSalesHistory } from "./views/salesHistory.js";
 import { renderCustomers } from "./views/customers.js";
 import { renderReports } from "./views/reports.js";
 import { renderSettings } from "./views/settings.js";
+import { requirePassword } from "./security.js";
+
+/** Wraps a view's render function so it asks for the shop password first
+ * (when password protection is enabled in Settings) before showing the page. */
+function guarded(renderFn, actionLabel) {
+  return async (root, param) => {
+    const ok = await requirePassword(actionLabel);
+    if (!ok) {
+      root.innerHTML = `<div class="page-header"><h1>Locked</h1></div><div class="panel"><p class="empty">Access cancelled.</p></div>`;
+      return;
+    }
+    return renderFn(root, param);
+  };
+}
 
 const NAV_ITEMS = [
   { route: "dashboard", label: "Dashboard" },
@@ -100,10 +114,10 @@ async function showApp() {
 
   document.getElementById("signout-btn").addEventListener("click", signOut);
 
-  registerRoute("dashboard", renderDashboard);
+  registerRoute("dashboard", guarded(renderDashboard, "open the Dashboard"));
   registerRoute("pos", renderPOS);
   registerRoute("inventory", renderInventory);
-  registerRoute("sales", renderSalesHistory);
+  registerRoute("sales", guarded(renderSalesHistory, "open Sales History"));
   registerRoute("customers", renderCustomers);
   registerRoute("reports", renderReports);
   registerRoute("settings", renderSettings);
